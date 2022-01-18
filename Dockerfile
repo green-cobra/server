@@ -1,7 +1,7 @@
 FROM alpine:latest
 
-COPY go-green-cobra-server /
+COPY server /
 
 USER 999
-ENTRYPOINT ["/go-green-cobra-server"]
+ENTRYPOINT ["/server"]
 STOPSIGNAL SIGINT
