@@ -3,9 +3,9 @@ package services
 import (
 	"fmt"
 	"github.com/rs/zerolog"
-	"math/rand"
 	"net"
-	"net/url"
+	"strings"
+	"time"
 )
 
 type TcpProxyInstance struct {
@@ -17,41 +17,60 @@ type TcpProxyInstance struct {
 	logger   zerolog.Logger
 	connPool *forwardConnectionsPool
 
-	originUrl *url.URL
+	origin *OriginMeta
 }
 
-func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, originUrl *url.URL) *TcpProxyInstance {
-	port := c.MinPort + rand.Intn(c.MaxPort-c.MinPort)
+func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, origin *OriginMeta) *TcpProxyInstance {
+	port := GenerateOpenedPortNumber(c.MinPort, c.MaxPort)
 
-	return &TcpProxyInstance{
-		Port:      port,
-		ID:        id,
-		conf:      c,
-		logger:    logger,
-		originUrl: originUrl,
-		connPool:  newForwardConnectionsPool(),
+	tp := &TcpProxyInstance{
+		Port:     port,
+		ID:       id,
+		conf:     c,
+		logger:   logger,
+		origin:   origin,
+		connPool: newForwardConnectionsPool(),
 	}
+
+	go func() {
+		err := tp.listen()
+		if err != nil {
+			tp.logger.Err(err).Msg("failed to listen")
+		}
+	}()
+	return tp
+
+}
+
+func (s *TcpProxyInstance) MaxConns() int {
+	return s.conf.MaxConnsPerClient
 }
 
 func (s *TcpProxyInstance) URL() string {
-	domain := s.originUrl.Host
+	domain := s.origin.Url.Host
 	if s.conf.BaseDomain != "" {
 		domain = s.conf.BaseDomain
 	}
 
-	return s.originUrl.Scheme + "://" + s.ID + "." + domain
+	return s.origin.Url.Scheme + "://" + s.ID + "." + domain
 }
 
 func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
 	c := s.connPool.Get()
-	if c == nil {
-		// Todo: handle logic of waiting for connection to be available
-		return nil, nil
+	attempt := 0
+	for c == nil {
+		if attempt >= 5 {
+			return nil, nil
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		c = s.connPool.Get()
+		attempt++
 	}
 
 	defer c.Release()
 
-	//TODO: handle errors
 	err := c.Write(data)
 	if err != nil {
 		return err, nil
@@ -66,6 +85,7 @@ func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
 }
 
 func (s *TcpProxyInstance) listen() error {
+	//TODO: close connection after some inactivity period
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
 	if err != nil {
 		s.logger.Fatal().Int("port", s.Port).Err(err).Msg("Unable to create listener.")
@@ -76,7 +96,19 @@ func (s *TcpProxyInstance) listen() error {
 
 	for {
 		conn, err := listener.Accept()
-		if s.connPool.Size() >= 10 {
+
+		ra := conn.RemoteAddr().String()
+		raParts := net.ParseIP(strings.Split(ra, ":")[0])
+		if !s.origin.Ip.Equal(raParts) {
+			s.logger.Warn().Err(err).Msg("Closing connection as IP doesnt match origin IP")
+			err := conn.Close()
+			if err != nil {
+				s.logger.Error().Err(err).Msg("Error while closing connection.")
+			}
+			continue
+		}
+
+		if s.connPool.Size() >= s.conf.MaxConnsPerClient {
 			// reject connection after 10 are opened
 			s.logger.Debug().Err(err).Msg("Closing connection as there are too many opened connections for client")
 			err := conn.Close()
@@ -89,9 +121,7 @@ func (s *TcpProxyInstance) listen() error {
 			s.logger.Debug().Err(err).Msg("Error while accepting connection.")
 		}
 
-		//TODO: err
 		//TODO: handle connections closing in background
-
 		s.logger.Info().Msg("new connection opened")
 		err = s.connPool.Append(conn)
 		if err != nil {

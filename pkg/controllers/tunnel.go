@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 )
 
 type tunnelRequest struct {
 	Name string `json:"name"`
 
+	originaIP net.IP
 	originURL *url.URL
 }
 
@@ -27,7 +29,12 @@ func newTunnelRequest(r *http.Request) tunnelRequest {
 
 func (t *tunnelRequest) withMeta(r *http.Request) *tunnelRequest {
 	r.URL.Host = r.Host
+
+	//TODO: read from request
 	r.URL.Scheme = "http"
+
+	parts := strings.Split(r.RemoteAddr, ":")
+	t.originaIP = net.ParseIP(parts[0])
 
 	t.originURL = r.URL
 
@@ -157,7 +164,8 @@ func (t *TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnel
 		Name:     c.ID,
 		Port:     c.Port,
 		Url:      c.URL(),
-		MaxConns: 10}
+		MaxConns: c.MaxConns(),
+	}
 
 	enc := json.NewEncoder(w)
 	err := enc.Encode(tr)
@@ -174,6 +182,9 @@ func (t *TunnelController) createTunnel(tq tunnelRequest) *services.TcpProxyInst
 		tq.Name = services.GenerateTunnelName()
 	}
 
-	c := t.proxyManager.New(tq.Name, tq.originURL)
+	c := t.proxyManager.New(tq.Name, &services.OriginMeta{
+		Url: tq.originURL,
+		Ip:  tq.originaIP,
+	})
 	return c
 }

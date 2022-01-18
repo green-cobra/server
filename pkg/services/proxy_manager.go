@@ -2,13 +2,24 @@ package services
 
 import (
 	"github.com/rs/zerolog"
+	"net"
 	"net/url"
 )
 
 type ProxyConfig struct {
-	MinPort    int
-	MaxPort    int
-	BaseDomain string
+	MinPort           int
+	MaxPort           int
+	BaseDomain        string
+	MaxConnsPerClient int
+}
+
+func (pc *ProxyConfig) MaxClients() int {
+	return pc.MaxPort - pc.MinPort
+}
+
+type OriginMeta struct {
+	Url *url.URL
+	Ip  net.IP
 }
 
 type TcpProxyManager struct {
@@ -27,11 +38,15 @@ func NewTcpProxyManager(logger zerolog.Logger, proxyConf *ProxyConfig) *TcpProxy
 	}
 }
 
-func (t *TcpProxyManager) New(tunnelId string, originUrl *url.URL) *TcpProxyInstance {
-	// TODO: close connection after timeout
+func (t *TcpProxyManager) New(tunnelId string, origin *OriginMeta) *TcpProxyInstance {
+	if len(t.instances) >= t.conf.MaxClients() {
+		return nil
+	}
 
-	t.instances[tunnelId] = NewTcpProxyInstance(t.logger, t.conf, tunnelId, originUrl)
-	go t.instances[tunnelId].listen()
+	// TODO: close connection after timeout
+	t.instances[tunnelId] = NewTcpProxyInstance(t.logger, t.conf, tunnelId, origin)
+
+	// TODO: setup hook on tunnel close
 
 	return t.instances[tunnelId]
 }
