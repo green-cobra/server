@@ -11,6 +11,7 @@ import (
 func GetRouter(pc *services.ProxyConfig, logger zerolog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
 	proxyManager := services.NewTcpProxyManager(logger.With().Str("module", "proxy-manager").Logger(), pc)
 
