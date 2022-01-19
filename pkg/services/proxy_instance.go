@@ -18,18 +18,27 @@ type TcpProxyInstance struct {
 	connPool *forwardConnectionsPool
 
 	origin *OriginMeta
+
+	close      chan struct{}
+	lastActive time.Time
+
+	listener net.Listener
+
+	onClose chan struct{}
 }
 
 func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, origin *OriginMeta) *TcpProxyInstance {
 	port := GenerateOpenedPortNumber(c.MinPort, c.MaxPort)
 
 	tp := &TcpProxyInstance{
-		Port:     port,
-		ID:       id,
-		conf:     c,
-		logger:   logger,
-		origin:   origin,
-		connPool: newForwardConnectionsPool(),
+		Port:       port,
+		ID:         id,
+		conf:       c,
+		logger:     logger,
+		origin:     origin,
+		connPool:   newForwardConnectionsPool(),
+		lastActive: time.Now(),
+		close:      make(chan struct{}, 1),
 	}
 
 	go func() {
@@ -38,8 +47,51 @@ func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, origi
 			tp.logger.Err(err).Msg("failed to listen")
 		}
 	}()
-	return tp
 
+	go func() {
+		for {
+			<-time.After(30 * time.Minute)
+			timeoutDelay := time.Now().Add(time.Duration(-1*tp.conf.InactiveHoursTimeout) * time.Hour)
+			if tp.lastActive.Before(timeoutDelay) {
+				tp.close <- struct{}{}
+				return
+			}
+		}
+	}()
+
+	go func() {
+		attempt := 0
+		for {
+			<-time.After(time.Duration(tp.conf.NoActiveSocketsMinutesTimeout) * time.Minute)
+
+			if tp.connPool.Size() == 0 {
+				attempt++
+			}
+
+			if attempt >= tp.conf.NoActiveSocketsChecks {
+				tp.close <- struct{}{}
+				return
+			}
+		}
+	}()
+
+	go func() {
+		<-tp.close
+		err := tp.listener.Close()
+		if err != nil {
+			tp.logger.Err(err).Int("port", tp.Port).Msg("failed to close listener")
+		}
+
+		tp.connPool.Close()
+
+		tp.onClose <- struct{}{}
+	}()
+
+	return tp
+}
+
+func (s *TcpProxyInstance) OnClose() <-chan struct{} {
+	return s.onClose
 }
 
 func (s *TcpProxyInstance) MaxConns() int {
@@ -56,6 +108,8 @@ func (s *TcpProxyInstance) URL() string {
 }
 
 func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
+	s.updateActive()
+
 	c := s.connPool.Get()
 	attempt := 0
 	for c == nil {
@@ -84,18 +138,23 @@ func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
 	return nil, resp
 }
 
+func (s *TcpProxyInstance) updateActive() {
+	s.lastActive = time.Now()
+}
+
 func (s *TcpProxyInstance) listen() error {
-	//TODO: close connection after some inactivity period
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
+	var err error
+	s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
 	if err != nil {
 		s.logger.Fatal().Int("port", s.Port).Err(err).Msg("Unable to create listener.")
 		return err
 	}
-	defer listener.Close()
-	s.logger.Info().Str("bind", listener.Addr().String()).Str("protocol", "tcp").Msg("Listening...")
+	defer s.listener.Close()
+	s.logger.Info().Str("bind", s.listener.Addr().String()).Str("protocol", "tcp").Msg("Listening...")
 
 	for {
-		conn, err := listener.Accept()
+		conn, err := s.listener.Accept()
+		s.updateActive()
 
 		ra := conn.RemoteAddr().String()
 		raParts := net.ParseIP(strings.Split(ra, ":")[0])
@@ -121,7 +180,6 @@ func (s *TcpProxyInstance) listen() error {
 			s.logger.Debug().Err(err).Msg("Error while accepting connection.")
 		}
 
-		//TODO: handle connections closing in background
 		s.logger.Info().Msg("new connection opened")
 		err = s.connPool.Append(conn)
 		if err != nil {

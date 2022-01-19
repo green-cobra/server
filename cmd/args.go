@@ -11,7 +11,11 @@ var (
 
 	baseDomain = flag.String("domain", "", "Domain override for URL")
 
-	listenPort = flag.Int("listen-port", 3000, "Port for API to listen")
+	listenPort = flag.Int("listen-port", 3001, "Port for API to listen")
+
+	timeoutInactiveHours   = flag.Int("timeout-inactive-hours", 24, "Number of hours to wait before closing client sockets")
+	timeoutNoActiveSockets = flag.Int("timeout-inactive-sockets", 10, "Number of minutes between checks to wait before treating client as inactive")
+	noActiveSocketsChecks  = flag.Int("checks-inactive-sockets", 3, "Number of checks to wait before treating client as inactive")
 )
 
 type ServerConfig struct {
@@ -22,9 +26,12 @@ func ParseArgs() (*services.ProxyConfig, *ServerConfig) {
 	flag.Parse()
 
 	return &services.ProxyConfig{
-		MinPort:           *minPort,
-		MaxPort:           *maxPort,
-		BaseDomain:        *baseDomain,
-		MaxConnsPerClient: *maxConnsPerClient,
+		MinPort:                       *minPort,
+		MaxPort:                       *maxPort,
+		BaseDomain:                    *baseDomain,
+		MaxConnsPerClient:             *maxConnsPerClient,
+		InactiveHoursTimeout:          *timeoutInactiveHours,
+		NoActiveSocketsChecks:         *noActiveSocketsChecks,
+		NoActiveSocketsMinutesTimeout: *timeoutNoActiveSockets,
 	}, &ServerConfig{ListenPort: *listenPort}
 }

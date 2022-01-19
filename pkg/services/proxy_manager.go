@@ -11,6 +11,10 @@ type ProxyConfig struct {
 	MaxPort           int
 	BaseDomain        string
 	MaxConnsPerClient int
+
+	InactiveHoursTimeout          int
+	NoActiveSocketsMinutesTimeout int
+	NoActiveSocketsChecks         int
 }
 
 func (pc *ProxyConfig) MaxClients() int {
@@ -43,10 +47,11 @@ func (t *TcpProxyManager) New(tunnelId string, origin *OriginMeta) *TcpProxyInst
 		return nil
 	}
 
-	// TODO: close connection after timeout
 	t.instances[tunnelId] = NewTcpProxyInstance(t.logger, t.conf, tunnelId, origin)
-
-	// TODO: setup hook on tunnel close
+	go func() {
+		<-t.instances[tunnelId].OnClose()
+		delete(t.instances, tunnelId)
+	}()
 
 	return t.instances[tunnelId]
 }

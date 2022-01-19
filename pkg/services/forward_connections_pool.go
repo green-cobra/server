@@ -27,6 +27,17 @@ func newForwardConnectionsPool() *forwardConnectionsPool {
 	return p
 }
 
+func (f *forwardConnectionsPool) Close() {
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	for _, v := range f.conns {
+		v.MarkClosed()
+		v.conn.SetDeadline(time.Now())
+		v.conn.Close()
+	}
+}
+
 func (f *forwardConnectionsPool) gcClosedConnections() {
 	f.m.Lock()
 	defer f.m.Unlock()
