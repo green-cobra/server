@@ -12,10 +12,7 @@ builds:
     main: ./cmd/api
 
 archives:
-  -
-    builds:
-      - default
-    format: zip
+  - format: zip
 
 checksum:
   name_template: 'checksums.txt'
