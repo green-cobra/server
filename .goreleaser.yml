@@ -11,6 +11,12 @@ builds:
       - darwin
     main: ./cmd/api
 
+archives:
+  -
+    builds:
+      - default
+    format: zip
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:
