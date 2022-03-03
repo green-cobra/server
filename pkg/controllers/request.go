@@ -10,8 +10,8 @@ import (
 type tunnelRequest struct {
 	Name string `json:"name"`
 
-	originaIP net.IP
-	originURL *url.URL
+	originalIP net.IP
+	originURL  *url.URL
 }
 
 func newTunnelRequest(r *http.Request) tunnelRequest {
@@ -27,7 +27,7 @@ func (t *tunnelRequest) withMeta(r *http.Request) *tunnelRequest {
 	r.URL.Scheme = "http"
 
 	parts := strings.Split(r.RemoteAddr, ":")
-	t.originaIP = net.ParseIP(parts[0])
+	t.originalIP = net.ParseIP(parts[0])
 
 	t.originURL = r.URL
 

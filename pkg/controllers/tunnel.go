@@ -148,7 +148,7 @@ func (t *TunnelController) createTunnel(tq tunnelRequest) *services.TcpProxyInst
 
 	c := t.proxyManager.New(tq.Name, &services.OriginMeta{
 		Url: tq.originURL,
-		Ip:  tq.originaIP,
+		Ip:  tq.originalIP,
 	})
 	return c
 }
