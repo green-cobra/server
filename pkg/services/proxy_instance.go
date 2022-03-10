@@ -158,7 +158,7 @@ func (s *TcpProxyInstance) listen() error {
 
 		ra := conn.RemoteAddr().String()
 		raParts := net.ParseIP(strings.Split(ra, ":")[0])
-		if !s.origin.Ip.Equal(raParts) {
+		if s.origin.Ip != nil && !s.origin.Ip.Equal(raParts) {
 			s.logger.Warn().Err(err).Msg("Closing connection as IP doesnt match origin IP")
 			err := conn.Close()
 			if err != nil {

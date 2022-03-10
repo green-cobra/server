@@ -25,13 +25,16 @@ func NewTunnelController(logger zerolog.Logger, proxyManager *services.TcpProxyM
 func (t *TunnelController) CreateConnection(w http.ResponseWriter, r *http.Request) {
 	tq := newTunnelRequest(r)
 
-	d := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := d.Decode(&tq)
-	if err != nil {
-		t.logger.Error().Err(err).Msgf("failed to parse input json")
-		w.WriteHeader(500)
-		return
+	body, err := io.ReadAll(r.Body)
+	if len(body) != 0 {
+		d := json.NewDecoder(bytes.NewReader(body))
+		defer r.Body.Close()
+		err = d.Decode(&tq)
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("failed to parse input json")
+			w.WriteHeader(500)
+			return
+		}
 	}
 
 	t.createTunnelResponse(w, tq)
@@ -82,10 +85,13 @@ func (t *TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parsedResp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(resp)), r)
-	if err != nil && !err.(*net.OpError).Timeout() {
-		t.logger.Error().Err(err).Msg("failed to parse req")
-		w.WriteHeader(500)
-		return
+	if err != nil {
+		netErr, ok := err.(*net.OpError)
+		if !ok || (ok && !netErr.Timeout()) {
+			t.logger.Error().Err(err).Msg("failed to parse req")
+			w.WriteHeader(500)
+			return
+		}
 	}
 
 	t.clearHeaders(w)
