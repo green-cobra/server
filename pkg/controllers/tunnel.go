@@ -116,6 +116,8 @@ func (t *TunnelController) replicateBody(w http.ResponseWriter, err error, parse
 }
 
 func (t *TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *http.Response) {
+	w.WriteHeader(parsedResp.StatusCode)
+
 	for s := range parsedResp.Header {
 		w.Header().Set(s, parsedResp.Header.Get(s))
 	}
