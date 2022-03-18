@@ -12,7 +12,7 @@ import (
 func GetRouter(pc *services.ProxyConfig, logger zerolog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
-	httpLogger := httplog.NewLogger("httplog-example", httplog.Options{
+	httpLogger := httplog.NewLogger("http", httplog.Options{
 		JSON: true,
 	})
 
