@@ -10,15 +10,14 @@ import (
 )
 
 func main() {
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-
 	pc, sc := cmd.ParseArgs()
+	logger := zerolog.New(os.Stdout).Level(zerolog.DebugLevel).With().Timestamp().Logger()
 
 	r := routing.GetRouter(pc, logger)
 
-	logger.Info().Msgf("starting api: [::]:%d", sc.ListenPort)
+	logger.Info().Msgf("starting api: %s:%d", sc.ListenHost, sc.ListenPort)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%d", sc.ListenPort), r)
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", sc.ListenHost, sc.ListenPort), r)
 	if err != nil {
 		logger.Err(err).Msgf("failed to listen port: %d", sc.ListenPort)
 		return
