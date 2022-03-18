@@ -31,7 +31,7 @@ func (t *TunnelController) CreateConnection(w http.ResponseWriter, r *http.Reque
 		defer r.Body.Close()
 		err = d.Decode(&tq)
 		if err != nil {
-			t.logger.Error().Err(err).Msgf("failed to parse input json")
+			t.logger.Error().Err(err).Msgf("create connection: failed to parse input json")
 			w.WriteHeader(500)
 			return
 		}
@@ -77,8 +77,14 @@ func (t *TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// err might be non nil because of response read timeout
+	// Timeout will be triggered because of deadline exceed
+	// timeout exceed can be caused by 2 reasons:
+	// 1. Real client timeout
+	// 2. Read data timeout caused by data receive finish
+	// Here it ignores err in case response size is non 0
 	err, resp := conn.Proxy(input)
-	if err != nil && !err.(*net.OpError).Timeout() {
+	if err != nil && len(resp) == 0 {
 		t.logger.Error().Err(err).Msg("failed to proxy data")
 		w.WriteHeader(500)
 		return
@@ -147,6 +153,8 @@ func (t *TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnel
 		w.WriteHeader(500)
 		return
 	}
+
+	t.logger.Info().Str("name", c.ID).Int("port", c.Port).Str("url", c.URL()).Msg("opened new tunnel")
 }
 
 func (t *TunnelController) createTunnel(tq tunnelRequest) *services.TcpProxyInstance {

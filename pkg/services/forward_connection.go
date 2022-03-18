@@ -20,8 +20,17 @@ func (c *forwardConnection) Release() {
 	c.inUse = false
 }
 
+func (c *forwardConnection) Close() {
+	if !c.alive {
+		return
+	}
+
+	_ = c.conn.Close()
+	c.alive = false
+}
+
 func (c *forwardConnection) updateDeadlines() {
-	delay := 10 * time.Millisecond
+	delay := 100 * time.Millisecond
 
 	c.conn.SetReadDeadline(time.Now().Add(delay))
 	c.conn.SetWriteDeadline(time.Now().Add(delay))

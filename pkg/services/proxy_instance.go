@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"github.com/rs/zerolog"
 	"net"
@@ -114,7 +115,7 @@ func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
 	attempt := 0
 	for c == nil {
 		if attempt >= 5 {
-			return nil, nil
+			return errors.New("failed to get proxy connection, retries exceeded"), nil
 		}
 
 		time.Sleep(200 * time.Millisecond)
@@ -123,7 +124,10 @@ func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
 		attempt++
 	}
 
-	defer c.Release()
+	defer func() {
+		c.Release()
+		c.Close()
+	}()
 
 	err := c.Write(data)
 	if err != nil {
