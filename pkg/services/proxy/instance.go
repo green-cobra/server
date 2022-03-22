@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rs/zerolog"
-	"go-server/pkg/services"
 	"go-server/pkg/services/forward_connection"
 	"go-server/pkg/services/origin"
 	"net"
@@ -31,8 +30,7 @@ type TcpProxyInstance struct {
 	onClose chan struct{}
 }
 
-func NewTcpProxyInstance(logger zerolog.Logger, c *Config, id string, origin *origin.Meta) *TcpProxyInstance {
-	port := services.GenerateOpenedPortNumber(c.MinPort, c.MaxPort)
+func NewTcpProxyInstance(logger zerolog.Logger, port int, c *Config, id string, origin *origin.Meta) *TcpProxyInstance {
 
 	tp := &TcpProxyInstance{
 		Port:       port,

@@ -1,0 +1,29 @@
+GET http://localhost:3001/api/v1/admin/stats
+Accept: application/json
+
+# Response:
+#Date: Tue, 22 Mar 2022 14:22:15 GMT
+#Content-Length: 1134
+#Content-Type: text/plain; charset=utf-8
+#
+#{"proxies_running":29,"stats":[{"Addr":"[::]:30063","Connections":0},{"Addr":"[::]:30077","Connections":0},{"Addr":"[::]:30016","Connections":0},{"Addr":"[::]:30014","Connections":0},{"Addr":"[::]:30000","Connections":0},{"Addr":"[::]:30043","Connections":0},{"Addr":"[::]:30067","Connections":0},{"Addr":"[::]:30026","Connections":0},{"Addr":"[::]:30012","Connections":0},{"Addr":"[::]:30070","Connections":0},{"Addr":"[::]:30093","Connections":0},{"Addr":"[::]:30094","Connections":0},{"Addr":"[::]:30079","Connections":0},{"Addr":"[::]:30086","Connections":0},{"Addr":"[::]:30039","Connections":0},{"Addr":"[::]:30005","Connections":0},{"Addr":"[::]:30081","Connections":0},{"Addr":"[::]:30029","Connections":0},{"Addr":"[::]:30074","Connections":0},{"Addr":"[::]:30087","Connections":0},{"Addr":"[::]:30022","Connections":0},{"Addr":"[::]:30062","Connections":0},{"Addr":"[::]:30056","Connections":0},{"Addr":"[::]:30088","Connections":0},{"Addr":"[::]:30066","Connections":0},{"Addr":"[::]:30028","Connections":0},{"Addr":"[::]:30032","Connections":0},{"Addr":"[::]:30075","Connections":0},{"Addr":"[::]:30064","Connections":0}]}
+
+###
+
+POST http://localhost:3001/api/v1/tunnel
+Accept: application/json
+
+{
+  "name": "some_name"
+}
+
+# Response:
+#HTTP/1.1 200 OK
+#Date: Tue, 22 Mar 2022 14:21:54 GMT
+#Content-Length: 94
+#Content-Type: text/plain; charset=utf-8
+#
+#{"id":"some_name","port":30039,"url":"http://vkurupifvi.localhost:3001","max_conn_count":10}
+
+
+###

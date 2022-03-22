@@ -139,6 +139,11 @@ func (Controller) clearHeaders(w http.ResponseWriter) {
 
 func (t Controller) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest) {
 	c := t.createTunnel(tq)
+	if c == nil {
+		t.logger.Error().Msgf("failed to create proxy for request: %+v", tq)
+		w.WriteHeader(500)
+		return
+	}
 
 	tr := tunnelResponse{
 		Name:     c.ID,
@@ -161,6 +166,10 @@ func (t Controller) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest
 
 func (t Controller) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {
 	if tq.Name == "" {
+		tq.Name = services.GenerateTunnelName()
+	}
+
+	for t.proxyManager.Exists(tq.Name) {
 		tq.Name = services.GenerateTunnelName()
 	}
 
