@@ -7,14 +7,14 @@ import (
 )
 
 type forwardConnectionsPool struct {
-	m     sync.Mutex
-	conns []*forwardConnection
+	m     sync.RWMutex
+	conns []forwardConnection
 }
 
 func newForwardConnectionsPool() *forwardConnectionsPool {
 	p := &forwardConnectionsPool{
-		conns: make([]*forwardConnection, 0, 10),
-		m:     sync.Mutex{},
+		conns: make([]forwardConnection, 0, 10),
+		m:     sync.RWMutex{},
 	}
 
 	go func() {
@@ -32,23 +32,21 @@ func (f *forwardConnectionsPool) Close() {
 	defer f.m.Unlock()
 
 	for _, v := range f.conns {
-		v.MarkClosed()
-		v.conn.SetDeadline(time.Now())
-		v.conn.Close()
+		v.Close()
 	}
 }
 
 func (f *forwardConnectionsPool) gcClosedConnections() {
-	f.m.Lock()
-	defer f.m.Unlock()
+	f.m.RLock()
+	defer f.m.RUnlock()
 
-	conns := make([]*forwardConnection, 0, 10)
+	conns := make([]forwardConnection, 0, 10)
 	for _, v := range f.conns {
-		if v.inUse {
+		if v.InUse() {
 			continue
 		}
 
-		if v.alive {
+		if v.Alive() {
 			conns = append(conns, v)
 		}
 	}
@@ -60,16 +58,16 @@ func (f *forwardConnectionsPool) Append(c net.Conn) error {
 	f.m.Lock()
 	defer f.m.Unlock()
 
-	f.conns = append(f.conns, &forwardConnection{conn: c, inUse: false, alive: true})
+	f.conns = append(f.conns, &tcpForwardConnection{conn: c, inUse: false, alive: true})
 	return nil
 }
 
-func (f *forwardConnectionsPool) Get() *forwardConnection {
+func (f *forwardConnectionsPool) Get() forwardConnection {
 	f.m.Lock()
 	defer f.m.Unlock()
 
 	for _, v := range f.conns {
-		if v.inUse || !v.alive {
+		if v.InUse() || !v.Alive() {
 			continue
 		}
 
