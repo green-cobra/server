@@ -5,7 +5,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
 	"github.com/rs/zerolog"
-	"go-server/pkg/controllers"
+	"go-server/pkg/controllers/stats"
+	"go-server/pkg/controllers/tunnel"
 	"go-server/pkg/services/proxy"
 )
 
@@ -21,9 +22,11 @@ func GetRouter(pc *proxy.Config, logger zerolog.Logger) *chi.Mux {
 
 	proxyManager := proxy.NewTcpProxyManager(logger.With().Str("module", "proxy-manager").Logger(), pc)
 
-	tunnelController := controllers.NewTunnelController(logger.With().Str("module", "controller:tunnel").Logger(), proxyManager)
+	tunnelController := tunnel.NewTunnelController(logger.With().Str("module", "controller:tunnel").Logger(), proxyManager)
+	statsController := stats.NewStatsController(logger.With().Str("module", "controller:stats").Logger(), proxyManager)
 
 	r.Post("/api/v1/tunnel", tunnelController.CreateConnection)
+	r.Get("/api/v1/admin/stats", statsController.Get)
 	r.Get("/*", tunnelController.TryProxy)
 	r.Post("/*", tunnelController.Proxy)
 	r.Delete("/*", tunnelController.Proxy)

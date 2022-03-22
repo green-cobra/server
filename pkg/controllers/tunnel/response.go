@@ -1,4 +1,4 @@
-package controllers
+package tunnel
 
 type tunnelResponse struct {
 	Name     string `json:"id,omitempty"`

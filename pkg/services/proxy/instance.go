@@ -194,3 +194,11 @@ func (s *TcpProxyInstance) listen() error {
 		}
 	}
 }
+
+func (s TcpProxyInstance) GetAddr() string {
+	return s.listener.Addr().String()
+}
+
+func (s TcpProxyInstance) Connections() int {
+	return s.connPool.Size()
+}

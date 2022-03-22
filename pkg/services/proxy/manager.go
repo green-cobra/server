@@ -5,6 +5,11 @@ import (
 	"go-server/pkg/services/origin"
 )
 
+type ConnectionStats struct {
+	Addr        string
+	Connections int
+}
+
 type TcpProxyManager struct {
 	logger zerolog.Logger
 
@@ -43,4 +48,21 @@ func (t *TcpProxyManager) Exists(host string) bool {
 func (t *TcpProxyManager) Get(host string) *TcpProxyInstance {
 	v, _ := t.instances[host]
 	return v
+}
+
+func (t TcpProxyManager) GetRunning() int {
+	return len(t.instances)
+}
+
+func (t TcpProxyManager) GetConnectionsStats() []ConnectionStats {
+	details := make([]ConnectionStats, 0, len(t.instances))
+
+	for _, instance := range t.instances {
+		details = append(details, ConnectionStats{
+			Connections: instance.Connections(),
+			Addr:        instance.GetAddr(),
+		})
+	}
+
+	return details
 }

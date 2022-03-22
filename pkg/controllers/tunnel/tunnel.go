@@ -1,4 +1,4 @@
-package controllers
+package tunnel
 
 import (
 	"bufio"
@@ -14,17 +14,17 @@ import (
 	"net/http/httputil"
 )
 
-type TunnelController struct {
+type Controller struct {
 	logger zerolog.Logger
 
 	proxyManager *proxy.TcpProxyManager
 }
 
-func NewTunnelController(logger zerolog.Logger, proxyManager *proxy.TcpProxyManager) *TunnelController {
-	return &TunnelController{logger: logger, proxyManager: proxyManager}
+func NewTunnelController(logger zerolog.Logger, proxyManager *proxy.TcpProxyManager) *Controller {
+	return &Controller{logger: logger, proxyManager: proxyManager}
 }
 
-func (t *TunnelController) CreateConnection(w http.ResponseWriter, r *http.Request) {
+func (t *Controller) CreateConnection(w http.ResponseWriter, r *http.Request) {
 	tq := newTunnelRequest(r)
 
 	body, err := io.ReadAll(r.Body)
@@ -43,7 +43,7 @@ func (t *TunnelController) CreateConnection(w http.ResponseWriter, r *http.Reque
 	return
 }
 
-func (t TunnelController) TryProxy(w http.ResponseWriter, r *http.Request) {
+func (t Controller) TryProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Query().Has("new") {
 		tq := newTunnelRequest(r)
 		tq.Name = r.URL.Query().Get("new")
@@ -55,7 +55,7 @@ func (t TunnelController) TryProxy(w http.ResponseWriter, r *http.Request) {
 	t.Proxy(w, r)
 }
 
-func (t TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
+func (t Controller) Proxy(w http.ResponseWriter, r *http.Request) {
 	tunnelId := services.GetTunnelNameFromHost(r.Host)
 
 	ok := t.proxyManager.Exists(tunnelId)
@@ -109,7 +109,7 @@ func (t TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (t TunnelController) replicateBody(w http.ResponseWriter, err error, parsedResp *http.Response) {
+func (t Controller) replicateBody(w http.ResponseWriter, err error, parsedResp *http.Response) {
 	body, err := io.ReadAll(parsedResp.Body)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("failed to parse req body")
@@ -123,7 +123,7 @@ func (t TunnelController) replicateBody(w http.ResponseWriter, err error, parsed
 	}
 }
 
-func (TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *http.Response) {
+func (Controller) replicateHeaders(w http.ResponseWriter, parsedResp *http.Response) {
 	w.WriteHeader(parsedResp.StatusCode)
 
 	for s := range parsedResp.Header {
@@ -131,13 +131,13 @@ func (TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *http
 	}
 }
 
-func (TunnelController) clearHeaders(w http.ResponseWriter) {
+func (Controller) clearHeaders(w http.ResponseWriter) {
 	for k := range w.Header() {
 		w.Header().Del(k)
 	}
 }
 
-func (t TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest) {
+func (t Controller) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest) {
 	c := t.createTunnel(tq)
 
 	tr := tunnelResponse{
@@ -159,7 +159,7 @@ func (t TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnelR
 	t.logger.Info().Str("name", c.ID).Int("port", c.Port).Str("url", c.URL()).Msg("opened new tunnel")
 }
 
-func (t TunnelController) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {
+func (t Controller) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {
 	if tq.Name == "" {
 		tq.Name = services.GenerateTunnelName()
 	}
