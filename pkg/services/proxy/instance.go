@@ -1,9 +1,12 @@
-package services
+package proxy
 
 import (
 	"errors"
 	"fmt"
 	"github.com/rs/zerolog"
+	"go-server/pkg/services"
+	"go-server/pkg/services/forward_connection"
+	"go-server/pkg/services/origin"
 	"net"
 	"strings"
 	"time"
@@ -13,12 +16,12 @@ type TcpProxyInstance struct {
 	Port int
 	ID   string
 
-	conf *ProxyConfig
+	conf *Config
 
 	logger   zerolog.Logger
-	connPool *forwardConnectionsPool
+	connPool *forward_connection.ForwardConnectionsPool
 
-	origin *OriginMeta
+	origin *origin.Meta
 
 	close      chan struct{}
 	lastActive time.Time
@@ -28,8 +31,8 @@ type TcpProxyInstance struct {
 	onClose chan struct{}
 }
 
-func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, origin *OriginMeta) *TcpProxyInstance {
-	port := GenerateOpenedPortNumber(c.MinPort, c.MaxPort)
+func NewTcpProxyInstance(logger zerolog.Logger, c *Config, id string, origin *origin.Meta) *TcpProxyInstance {
+	port := services.GenerateOpenedPortNumber(c.MinPort, c.MaxPort)
 
 	tp := &TcpProxyInstance{
 		Port:       port,
@@ -37,7 +40,7 @@ func NewTcpProxyInstance(logger zerolog.Logger, c *ProxyConfig, id string, origi
 		conf:       c,
 		logger:     logger,
 		origin:     origin,
-		connPool:   newForwardConnectionsPool(),
+		connPool:   forward_connection.NewForwardConnectionsPool(),
 		lastActive: time.Now(),
 		close:      make(chan struct{}, 1),
 	}
@@ -100,12 +103,12 @@ func (s *TcpProxyInstance) MaxConns() int {
 }
 
 func (s *TcpProxyInstance) URL() string {
-	domain := s.origin.Url.Host
+	domain := s.origin.Host()
 	if s.conf.BaseDomain != "" {
 		domain = s.conf.BaseDomain
 	}
 
-	return s.origin.Url.Scheme + "://" + s.ID + "." + domain
+	return s.origin.Scheme() + "://" + s.ID + "." + domain
 }
 
 func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {
@@ -161,8 +164,8 @@ func (s *TcpProxyInstance) listen() error {
 		s.updateActive()
 
 		ra := conn.RemoteAddr().String()
-		raParts := net.ParseIP(strings.Split(ra, ":")[0])
-		if s.origin.Ip != nil && !s.origin.Ip.Equal(raParts) {
+		remoteIP := net.ParseIP(strings.Split(ra, ":")[0])
+		if s.origin.IP() != nil && !s.origin.IP().Equal(remoteIP) {
 			s.logger.Warn().Err(err).Msg("Closing connection as IP doesnt match origin IP")
 			err := conn.Close()
 			if err != nil {

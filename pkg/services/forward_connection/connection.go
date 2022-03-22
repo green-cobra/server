@@ -1,4 +1,4 @@
-package services
+package forward_connection
 
 import (
 	"io"
@@ -6,7 +6,7 @@ import (
 	time "time"
 )
 
-type forwardConnection interface {
+type ForwardConnection interface {
 	Acquire()
 	Release()
 	Close() error

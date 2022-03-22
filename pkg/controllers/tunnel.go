@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"github.com/rs/zerolog"
 	"go-server/pkg/services"
+	"go-server/pkg/services/origin"
+	"go-server/pkg/services/proxy"
 	"io"
 	"net"
 	"net/http"
@@ -15,10 +17,10 @@ import (
 type TunnelController struct {
 	logger zerolog.Logger
 
-	proxyManager *services.TcpProxyManager
+	proxyManager *proxy.TcpProxyManager
 }
 
-func NewTunnelController(logger zerolog.Logger, proxyManager *services.TcpProxyManager) *TunnelController {
+func NewTunnelController(logger zerolog.Logger, proxyManager *proxy.TcpProxyManager) *TunnelController {
 	return &TunnelController{logger: logger, proxyManager: proxyManager}
 }
 
@@ -41,7 +43,7 @@ func (t *TunnelController) CreateConnection(w http.ResponseWriter, r *http.Reque
 	return
 }
 
-func (t *TunnelController) TryProxy(w http.ResponseWriter, r *http.Request) {
+func (t TunnelController) TryProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Query().Has("new") {
 		tq := newTunnelRequest(r)
 		tq.Name = r.URL.Query().Get("new")
@@ -53,7 +55,7 @@ func (t *TunnelController) TryProxy(w http.ResponseWriter, r *http.Request) {
 	t.Proxy(w, r)
 }
 
-func (t *TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
+func (t TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
 	tunnelId := services.GetTunnelNameFromHost(r.Host)
 
 	ok := t.proxyManager.Exists(tunnelId)
@@ -107,7 +109,7 @@ func (t *TunnelController) Proxy(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (t *TunnelController) replicateBody(w http.ResponseWriter, err error, parsedResp *http.Response) {
+func (t TunnelController) replicateBody(w http.ResponseWriter, err error, parsedResp *http.Response) {
 	body, err := io.ReadAll(parsedResp.Body)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("failed to parse req body")
@@ -121,7 +123,7 @@ func (t *TunnelController) replicateBody(w http.ResponseWriter, err error, parse
 	}
 }
 
-func (t *TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *http.Response) {
+func (TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *http.Response) {
 	w.WriteHeader(parsedResp.StatusCode)
 
 	for s := range parsedResp.Header {
@@ -129,13 +131,13 @@ func (t *TunnelController) replicateHeaders(w http.ResponseWriter, parsedResp *h
 	}
 }
 
-func (t *TunnelController) clearHeaders(w http.ResponseWriter) {
+func (TunnelController) clearHeaders(w http.ResponseWriter) {
 	for k := range w.Header() {
 		w.Header().Del(k)
 	}
 }
 
-func (t *TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest) {
+func (t TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest) {
 	c := t.createTunnel(tq)
 
 	tr := tunnelResponse{
@@ -157,14 +159,11 @@ func (t *TunnelController) createTunnelResponse(w http.ResponseWriter, tq tunnel
 	t.logger.Info().Str("name", c.ID).Int("port", c.Port).Str("url", c.URL()).Msg("opened new tunnel")
 }
 
-func (t *TunnelController) createTunnel(tq tunnelRequest) *services.TcpProxyInstance {
+func (t TunnelController) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {
 	if tq.Name == "" {
 		tq.Name = services.GenerateTunnelName()
 	}
 
-	c := t.proxyManager.New(tq.Name, &services.OriginMeta{
-		Url: tq.originURL,
-		Ip:  tq.originalIP,
-	})
+	c := t.proxyManager.New(tq.Name, origin.NewMeta(tq.originURL, tq.originalIP))
 	return c
 }

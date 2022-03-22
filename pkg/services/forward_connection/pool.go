@@ -1,4 +1,4 @@
-package services
+package forward_connection
 
 import (
 	"net"
@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-type forwardConnectionsPool struct {
+type ForwardConnectionsPool struct {
 	m     sync.RWMutex
-	conns []forwardConnection
+	conns []ForwardConnection
 }
 
-func newForwardConnectionsPool() *forwardConnectionsPool {
-	p := &forwardConnectionsPool{
-		conns: make([]forwardConnection, 0, 10),
+func NewForwardConnectionsPool() *ForwardConnectionsPool {
+	p := &ForwardConnectionsPool{
+		conns: make([]ForwardConnection, 0, 10),
 		m:     sync.RWMutex{},
 	}
 
@@ -27,7 +27,7 @@ func newForwardConnectionsPool() *forwardConnectionsPool {
 	return p
 }
 
-func (f *forwardConnectionsPool) Close() {
+func (f *ForwardConnectionsPool) Close() {
 	f.m.Lock()
 	defer f.m.Unlock()
 
@@ -36,11 +36,11 @@ func (f *forwardConnectionsPool) Close() {
 	}
 }
 
-func (f *forwardConnectionsPool) gcClosedConnections() {
+func (f *ForwardConnectionsPool) gcClosedConnections() {
 	f.m.RLock()
 	defer f.m.RUnlock()
 
-	conns := make([]forwardConnection, 0, 10)
+	conns := make([]ForwardConnection, 0, 10)
 	for _, v := range f.conns {
 		if v.InUse() {
 			continue
@@ -54,7 +54,7 @@ func (f *forwardConnectionsPool) gcClosedConnections() {
 	f.conns = conns
 }
 
-func (f *forwardConnectionsPool) Append(c net.Conn) error {
+func (f *ForwardConnectionsPool) Append(c net.Conn) error {
 	f.m.Lock()
 	defer f.m.Unlock()
 
@@ -62,7 +62,7 @@ func (f *forwardConnectionsPool) Append(c net.Conn) error {
 	return nil
 }
 
-func (f *forwardConnectionsPool) Get() forwardConnection {
+func (f *ForwardConnectionsPool) Get() ForwardConnection {
 	f.m.Lock()
 	defer f.m.Unlock()
 
@@ -78,6 +78,6 @@ func (f *forwardConnectionsPool) Get() forwardConnection {
 	return nil
 }
 
-func (f *forwardConnectionsPool) Size() int {
+func (f *ForwardConnectionsPool) Size() int {
 	return len(f.conns)
 }

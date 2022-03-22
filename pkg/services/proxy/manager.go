@@ -1,40 +1,19 @@
-package services
+package proxy
 
 import (
 	"github.com/rs/zerolog"
-	"net"
-	"net/url"
+	"go-server/pkg/services/origin"
 )
-
-type ProxyConfig struct {
-	MinPort           int
-	MaxPort           int
-	BaseDomain        string
-	MaxConnsPerClient int
-
-	InactiveHoursTimeout          int
-	NoActiveSocketsMinutesTimeout int
-	NoActiveSocketsChecks         int
-}
-
-func (pc *ProxyConfig) MaxClients() int {
-	return pc.MaxPort - pc.MinPort
-}
-
-type OriginMeta struct {
-	Url *url.URL
-	Ip  net.IP
-}
 
 type TcpProxyManager struct {
 	logger zerolog.Logger
 
-	conf *ProxyConfig
+	conf *Config
 
 	instances map[string]*TcpProxyInstance
 }
 
-func NewTcpProxyManager(logger zerolog.Logger, proxyConf *ProxyConfig) *TcpProxyManager {
+func NewTcpProxyManager(logger zerolog.Logger, proxyConf *Config) *TcpProxyManager {
 	return &TcpProxyManager{
 		logger:    logger,
 		instances: make(map[string]*TcpProxyInstance),
@@ -42,7 +21,7 @@ func NewTcpProxyManager(logger zerolog.Logger, proxyConf *ProxyConfig) *TcpProxy
 	}
 }
 
-func (t *TcpProxyManager) New(tunnelId string, origin *OriginMeta) *TcpProxyInstance {
+func (t *TcpProxyManager) New(tunnelId string, origin *origin.Meta) *TcpProxyInstance {
 	if len(t.instances) >= t.conf.MaxClients() {
 		return nil
 	}

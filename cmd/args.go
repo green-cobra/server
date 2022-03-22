@@ -1,6 +1,8 @@
 package cmd
 
-import "go-server/pkg/services"
+import (
+	"go-server/pkg/services/proxy"
+)
 import flag "github.com/spf13/pflag"
 
 var (
@@ -24,10 +26,10 @@ type ServerConfig struct {
 	ListenHost string
 }
 
-func ParseArgs() (*services.ProxyConfig, *ServerConfig) {
+func ParseArgs() (*proxy.Config, *ServerConfig) {
 	flag.Parse()
 
-	return &services.ProxyConfig{
+	return &proxy.Config{
 		MinPort:                       *minPort,
 		MaxPort:                       *maxPort,
 		BaseDomain:                    *baseDomain,

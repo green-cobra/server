@@ -6,10 +6,10 @@ import (
 	"github.com/go-chi/httplog"
 	"github.com/rs/zerolog"
 	"go-server/pkg/controllers"
-	"go-server/pkg/services"
+	"go-server/pkg/services/proxy"
 )
 
-func GetRouter(pc *services.ProxyConfig, logger zerolog.Logger) *chi.Mux {
+func GetRouter(pc *proxy.Config, logger zerolog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
 	httpLogger := httplog.NewLogger("http", httplog.Options{
@@ -19,7 +19,7 @@ func GetRouter(pc *services.ProxyConfig, logger zerolog.Logger) *chi.Mux {
 	r.Use(httplog.RequestLogger(httpLogger))
 	r.Use(middleware.Recoverer)
 
-	proxyManager := services.NewTcpProxyManager(logger.With().Str("module", "proxy-manager").Logger(), pc)
+	proxyManager := proxy.NewTcpProxyManager(logger.With().Str("module", "proxy-manager").Logger(), pc)
 
 	tunnelController := controllers.NewTunnelController(logger.With().Str("module", "controller:tunnel").Logger(), proxyManager)
 
