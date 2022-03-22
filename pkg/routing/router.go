@@ -26,6 +26,7 @@ func GetRouter(pc *proxy.Config, logger zerolog.Logger) *chi.Mux {
 	statsController := stats.NewStatsController(logger.With().Str("module", "controller:stats").Logger(), proxyManager)
 
 	r.Post("/api/v1/tunnel", tunnelController.CreateConnection)
+	r.Delete("/api/v1/tunnel/{id}", tunnelController.DeleteConnection)
 	r.Get("/api/v1/admin/stats", statsController.Get)
 	r.Get("/*", tunnelController.TryProxy)
 	r.Post("/*", tunnelController.Proxy)

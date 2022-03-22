@@ -22,25 +22,26 @@ type TcpProxyInstance struct {
 
 	origin *origin.Meta
 
-	close      chan struct{}
-	lastActive time.Time
+	requestClose chan struct{}
+	lastActive   time.Time
 
 	listener net.Listener
 
-	onClose chan struct{}
+	notifyOnClose []chan struct{}
 }
 
 func NewTcpProxyInstance(logger zerolog.Logger, port int, c *Config, id string, origin *origin.Meta) *TcpProxyInstance {
 
 	tp := &TcpProxyInstance{
-		Port:       port,
-		ID:         id,
-		conf:       c,
-		logger:     logger,
-		origin:     origin,
-		connPool:   forward_connection.NewForwardConnectionsPool(),
-		lastActive: time.Now(),
-		close:      make(chan struct{}, 1),
+		Port:          port,
+		ID:            id,
+		conf:          c,
+		logger:        logger,
+		origin:        origin,
+		connPool:      forward_connection.NewForwardConnectionsPool(),
+		lastActive:    time.Now(),
+		requestClose:  make(chan struct{}, 1),
+		notifyOnClose: make([]chan struct{}, 0),
 	}
 
 	go func() {
@@ -55,7 +56,7 @@ func NewTcpProxyInstance(logger zerolog.Logger, port int, c *Config, id string, 
 			<-time.After(30 * time.Minute)
 			timeoutDelay := time.Now().Add(time.Duration(-1*tp.conf.InactiveHoursTimeout) * time.Hour)
 			if tp.lastActive.Before(timeoutDelay) {
-				tp.close <- struct{}{}
+				tp.RequestClose()
 				return
 			}
 		}
@@ -71,29 +72,43 @@ func NewTcpProxyInstance(logger zerolog.Logger, port int, c *Config, id string, 
 			}
 
 			if attempt >= tp.conf.NoActiveSocketsChecks {
-				tp.close <- struct{}{}
+				tp.RequestClose()
 				return
 			}
 		}
 	}()
 
 	go func() {
-		<-tp.close
-		err := tp.listener.Close()
-		if err != nil {
-			tp.logger.Err(err).Int("port", tp.Port).Msg("failed to close listener")
-		}
-
-		tp.connPool.Close()
-
-		tp.onClose <- struct{}{}
+		<-tp.requestClose
+		tp.close()
 	}()
 
 	return tp
 }
 
-func (s *TcpProxyInstance) OnClose() <-chan struct{} {
-	return s.onClose
+func (s *TcpProxyInstance) RequestClose() {
+	s.requestClose <- struct{}{}
+}
+
+func (s *TcpProxyInstance) close() {
+	s.sendOnClose()
+
+	err := s.listener.Close()
+	if err != nil {
+		s.logger.Err(err).Int("port", s.Port).Msg("failed to close listener")
+	}
+
+	s.connPool.Close()
+}
+
+func (s TcpProxyInstance) sendOnClose() {
+	for _, v := range s.notifyOnClose {
+		v <- struct{}{}
+	}
+}
+
+func (s *TcpProxyInstance) SubscribeOnClose(notify chan struct{}) {
+	s.notifyOnClose = append(s.notifyOnClose, notify)
 }
 
 func (s *TcpProxyInstance) MaxConns() int {
@@ -159,6 +174,10 @@ func (s *TcpProxyInstance) listen() error {
 
 	for {
 		conn, err := s.listener.Accept()
+		if conn == nil {
+			return nil
+		}
+
 		s.updateActive()
 
 		ra := conn.RemoteAddr().String()
@@ -190,6 +209,7 @@ func (s *TcpProxyInstance) listen() error {
 		if err != nil {
 			s.logger.Err(err).Msg("new connection opened")
 		}
+
 	}
 }
 
@@ -199,4 +219,8 @@ func (s TcpProxyInstance) GetAddr() string {
 
 func (s TcpProxyInstance) Connections() int {
 	return s.connPool.Size()
+}
+
+func (s TcpProxyInstance) GetCreatorIP() net.IP {
+	return s.origin.IP()
 }

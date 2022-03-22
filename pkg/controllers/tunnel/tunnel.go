@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 	"go-server/pkg/services"
 	"go-server/pkg/services/origin"
@@ -12,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 )
 
 type Controller struct {
@@ -175,4 +177,28 @@ func (t Controller) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {
 
 	c := t.proxyManager.New(tq.Name, origin.NewMeta(tq.originURL, tq.originalIP))
 	return c
+}
+
+func (t *Controller) DeleteConnection(w http.ResponseWriter, r *http.Request) {
+	tunnelId := chi.URLParam(r, "id")
+
+	ok := t.proxyManager.Exists(tunnelId)
+	if !ok {
+		w.Write([]byte("not found"))
+		w.WriteHeader(404)
+		return
+	}
+
+	connection := t.proxyManager.Get(tunnelId)
+
+	creatorIP := connection.GetCreatorIP()
+	requestIP := net.ParseIP(strings.Split(r.RemoteAddr, ":")[0])
+	if !creatorIP.Equal(requestIP) {
+		w.WriteHeader(404)
+		return
+	}
+
+	connection.RequestClose()
+	w.WriteHeader(200)
+	w.Write([]byte("{}"))
 }

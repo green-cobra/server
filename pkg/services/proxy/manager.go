@@ -8,6 +8,7 @@ import (
 )
 
 type ConnectionStats struct {
+	ID          string
 	Addr        string
 	Connections int
 }
@@ -52,8 +53,15 @@ func (t *TcpProxyManager) New(tunnelId string, origin *origin.Meta) *TcpProxyIns
 
 	t.instances[tunnelId] = NewTcpProxyInstance(t.logger, port, t.conf, tunnelId, origin)
 	go func() {
-		<-t.instances[tunnelId].OnClose()
+		onClose := make(chan struct{}, 1)
+
+		t.instances[tunnelId].SubscribeOnClose(onClose)
+		<-onClose
+
+		t.logger.Info().Str("tunnel-id", tunnelId).Msg("clearing resources after close")
+
 		delete(t.instances, tunnelId)
+		delete(t.takenPorts, port)
 	}()
 
 	return t.instances[tunnelId]
@@ -87,6 +95,7 @@ func (t TcpProxyManager) GetConnectionsStats() []ConnectionStats {
 
 	for _, instance := range t.instances {
 		details = append(details, ConnectionStats{
+			ID:          instance.ID,
 			Connections: instance.Connections(),
 			Addr:        instance.GetAddr(),
 		})
