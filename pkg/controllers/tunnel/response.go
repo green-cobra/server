@@ -1,8 +1,8 @@
 package tunnel
 
 type tunnelResponse struct {
-	Name     string `json:"id,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	Url      string `json:"url,omitempty"`
-	MaxConns int    `json:"max_conn_count,omitempty"`
+	Name             string `json:"id,omitempty"`
+	ProxyEndpointUrl string `json:"proxy_endpoint_url,omitempty"`
+	ClientUrl        string `json:"client_url,omitempty"`
+	MaxConns         int    `json:"max_conn_count,omitempty"`
 }

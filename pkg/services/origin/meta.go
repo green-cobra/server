@@ -3,6 +3,7 @@ package origin
 import (
 	"net"
 	"net/url"
+	"strings"
 )
 
 type Meta struct {
@@ -18,7 +19,16 @@ func NewMeta(url *url.URL, ip net.IP) *Meta {
 }
 
 func (m Meta) Host() string {
-	return m.url.Host
+	// Host format is: host.com:443
+	parts := strings.Split(m.url.Host, ":")
+
+	return parts[0]
+}
+func (m Meta) Port() string {
+	// Host format is: host.com:443
+	parts := strings.Split(m.url.Host, ":")
+
+	return parts[1]
 }
 
 func (m Meta) Scheme() string {
