@@ -11,9 +11,9 @@ var (
 
 	maxConnsPerClient = flag.Int("max-client-conns", 10, "Max connections per client")
 
-	baseDomain = flag.String("domain", "", "Domain override for URL")
+	baseDomain = flag.String("domain", "", "Domain override for ClientUrl")
 
-	listenPort = flag.Int("listen-port", 3001, "Port for API to listen")
+	listenPort = flag.Int("listen-port", 3001, "ProxyEndpointUrl for API to listen")
 	listenHost = flag.String("listen-host", "0.0.0.0", "Host for API to listen")
 
 	timeoutInactiveHours   = flag.Int("timeout-inactive-hours", 24, "Number of hours to wait before closing client sockets")

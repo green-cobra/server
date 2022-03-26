@@ -148,10 +148,10 @@ func (t Controller) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest
 	}
 
 	tr := tunnelResponse{
-		Name:     c.ID,
-		Port:     c.Port,
-		Url:      c.URL(),
-		MaxConns: c.MaxConns(),
+		Name:             c.ID,
+		ProxyEndpointUrl: c.ProxyEndpointUrl(),
+		ClientUrl:        c.ClientUrl(),
+		MaxConns:         c.MaxConns(),
 	}
 
 	enc := json.NewEncoder(w)
@@ -163,7 +163,7 @@ func (t Controller) createTunnelResponse(w http.ResponseWriter, tq tunnelRequest
 		return
 	}
 
-	t.logger.Info().Str("name", c.ID).Int("port", c.Port).Str("url", c.URL()).Msg("opened new tunnel")
+	t.logger.Info().Str("name", c.ID).Int("port", c.Port).Str("url", c.ClientUrl()).Msg("opened new tunnel")
 }
 
 func (t Controller) createTunnel(tq tunnelRequest) *proxy.TcpProxyInstance {

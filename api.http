@@ -23,7 +23,7 @@ Accept: application/json
 #Content-Length: 94
 #Content-Type: text/plain; charset=utf-8
 #
-#{"id":"some_name","port":30039,"url":"http://vkurupifvi.localhost:3001","max_conn_count":10}
+# {"id":"some_name","proxy_endpoint_url":"http://some_name.localhost:30081","client_url":"http://some_name.localhost:3001","max_conn_count":10}
 
 
 ###

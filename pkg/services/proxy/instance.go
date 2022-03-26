@@ -115,13 +115,24 @@ func (s *TcpProxyInstance) MaxConns() int {
 	return s.conf.MaxConnsPerClient
 }
 
-func (s *TcpProxyInstance) URL() string {
+func (s *TcpProxyInstance) ClientUrl() string {
 	domain := s.origin.Host()
 	if s.conf.BaseDomain != "" {
 		domain = s.conf.BaseDomain
 	}
 
-	return s.origin.Scheme() + "://" + s.ID + "." + domain
+	port := s.origin.Port()
+
+	return fmt.Sprintf("%s://%s.%s:%s", s.origin.Scheme(), s.ID, domain, port)
+}
+
+func (s *TcpProxyInstance) ProxyEndpointUrl() string {
+	domain := s.origin.Host()
+	if s.conf.BaseDomain != "" {
+		domain = s.conf.BaseDomain
+	}
+
+	return fmt.Sprintf("%s://%s.%s:%d", s.origin.Scheme(), s.ID, domain, s.Port)
 }
 
 func (s *TcpProxyInstance) Proxy(data []byte) (error, []byte) {

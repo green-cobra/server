@@ -9,4 +9,4 @@ require (
 
 require github.com/rs/zerolog v1.26.1
 
-require github.com/go-chi/httplog v0.2.1 // indirect
+require github.com/go-chi/httplog v0.2.1
